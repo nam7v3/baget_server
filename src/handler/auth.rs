@@ -1,11 +1,11 @@
-use actix_web::cookie::{Cookie, self};
+use actix_web::cookie::{self, Cookie};
 use actix_web::{post, web, HttpResponse};
 use argon2::password_hash::rand_core::OsRng;
 use argon2::password_hash::SaltString;
-use argon2::{Argon2, PasswordHasher, PasswordHash, PasswordVerifier};
+use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
 use chrono::{Duration, Utc};
 use diesel::prelude::*;
-use jsonwebtoken::{Header, EncodingKey};
+use jsonwebtoken::{EncodingKey, Header};
 
 use crate::jwt_auth::TokenClaims;
 use crate::models::user::{NewUser, User};

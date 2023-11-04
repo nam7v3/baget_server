@@ -1,13 +1,13 @@
 use chrono::NaiveDateTime;
-use uuid::Uuid;
-use serde::Serialize;
+use diesel::{Insertable, Queryable, Selectable};
 use serde::Deserialize;
-use diesel::{Insertable, Selectable, Queryable};
+use serde::Serialize;
+use uuid::Uuid;
 
 #[derive(Queryable, Selectable, Insertable, Deserialize, Serialize)]
 #[diesel(table_name = crate::schema::users)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
-pub struct User{
+pub struct User {
     pub user_id: Uuid,
     pub username: String,
     pub password: String,
@@ -19,7 +19,7 @@ pub struct User{
 #[derive(Insertable, Deserialize, Serialize)]
 #[diesel(table_name = crate::schema::users)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
-pub struct NewUser{
+pub struct NewUser {
     pub username: String,
     pub password: String,
 }
