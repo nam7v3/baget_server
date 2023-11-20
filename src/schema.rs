@@ -1,19 +1,20 @@
 // @generated automatically by Diesel CLI.
 
 diesel::table! {
-    expense_table (expense_id) {
-        expense_id -> Int4,
+    account_table (account_id, user_id) {
+        account_id -> Int4,
         user_id -> Uuid,
-        entry_date -> Text,
-        amount -> Float4,
-        expense -> Text,
+        account -> Text,
+        balance -> Float4,
+        income -> Float4,
+        expense -> Float4,
     }
 }
 
 diesel::table! {
-    transaction_table (transaction_id) {
-        transaction_id -> Int4,
+    transaction_table (_timestamp, user_id) {
         user_id -> Uuid,
+        _timestamp -> Int4,
         entry_date -> Text,
         amount -> Float4,
         account -> Text,
@@ -35,11 +36,11 @@ diesel::table! {
     }
 }
 
-diesel::joinable!(expense_table -> users (user_id));
+diesel::joinable!(account_table -> users (user_id));
 diesel::joinable!(transaction_table -> users (user_id));
 
 diesel::allow_tables_to_appear_in_same_query!(
-    expense_table,
+    account_table,
     transaction_table,
     users,
 );

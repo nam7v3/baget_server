@@ -1,11 +1,13 @@
 use actix_web::{get, post, web, HttpMessage, HttpRequest, HttpResponse};
+use env_logger::Logger;
+use log::info;
 use uuid::Uuid;
 
 use crate::jwt_auth::JwtMiddleware;
-use crate::models::expense::{InsertExpense, QueryExpense};
-use crate::models::transaction::{InsertTransaction, QueryTransaction};
+use crate::models::account::{Account, SyncAccount};
+use crate::models::transaction::{SyncTransaction, Transaction};
 use crate::models::TransactionExpenseInsert;
-use crate::schema::expense_table::{self, dsl::*};
+use crate::schema::account_table::{self, dsl::*};
 use crate::schema::transaction_table::{self, dsl::*};
 use crate::AppState;
 use diesel::prelude::*;
@@ -20,31 +22,30 @@ pub async fn sync_post(
     let ext = req.extensions();
     let uid = ext.get::<Uuid>().unwrap();
     let mut db = app_data.db.get().unwrap();
-
     diesel::delete(transaction_table)
         .filter(transaction_table::user_id.eq(&uid))
         .execute(&mut db)
         .unwrap();
 
-    diesel::delete(expense_table)
-        .filter(expense_table::user_id.eq(&uid))
+    diesel::delete(account_table)
+        .filter(account_table::user_id.eq(&uid))
         .execute(&mut db)
         .unwrap();
 
-    let transactions: Vec<InsertTransaction> = data
+    let transactions: Vec<Transaction> = data
         .transactions
         .iter()
         .map(|t| t.into_insert(uid))
         .collect();
 
-    let expenses: Vec<InsertExpense> = data.expenses.iter().map(|e| e.into_insert(uid)).collect();
+    let expenses: Vec<Account> = data.accounts.iter().map(|e| e.into_insert(uid)).collect();
 
     diesel::insert_into(transaction_table)
         .values(transactions)
         .execute(&mut db)
         .unwrap();
 
-    diesel::insert_into(expense_table)
+    diesel::insert_into(account_table)
         .values(expenses)
         .execute(&mut db)
         .unwrap();
@@ -67,33 +68,28 @@ pub async fn sync_get(
     let transactions = transaction_table
         .filter(transaction_table::user_id.eq(&uid))
         .select((
-            transaction_id,
+            _timestamp,
             transaction_table::entry_date,
             transaction_table::amount,
-            account,
+            transaction_table::account,
             category,
             transaction_type,
             transaction_title,
         ))
-        .load::<QueryTransaction>(&mut db)
+        .load::<SyncTransaction>(&mut db)
         .unwrap();
 
-    let expenses = expense_table
-        .filter(expense_table::user_id.eq(&uid))
-        .select((
-            expense_id,
-            expense_table::entry_date,
-            expense_table::amount,
-            expense,
-        ))
-        .load::<QueryExpense>(&mut db)
+    let accounts = account_table
+        .filter(account_table::user_id.eq(&uid))
+        .select((account_id, account_table::account, balance, income, expense))
+        .load::<SyncAccount>(&mut db)
         .unwrap();
 
     HttpResponse::Ok().json(serde_json::json!({
         "status": "success",
-        "data": {
-            "transactions": transactions,
-            "expenses": expenses,
+        "data": TransactionExpenseInsert{
+            accounts,
+            transactions,
         }
     }))
 }

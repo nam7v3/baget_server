@@ -4,13 +4,18 @@ use std::future::{ready, Ready};
 use actix_web::error::ErrorUnauthorized;
 use actix_web::{dev::Payload, Error as ActixWebError};
 use actix_web::{http, web, FromRequest, HttpMessage, HttpRequest};
+use diesel::prelude::*;
+use diesel::sql_types::Uuid;
 use jsonwebtoken::{decode, DecodingKey, Validation};
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
+use serde_json::json;
 
+use crate::models::user::{self, User};
+use crate::schema::users::dsl::*;
 use crate::AppState;
 
 #[derive(Serialize, Deserialize)]
-pub struct TokenClaims{
+pub struct TokenClaims {
     pub sub: String,
     pub iat: usize,
     pub exp: usize,
@@ -37,6 +42,7 @@ impl FromRequest for JwtMiddleware {
     type Future = Ready<Result<Self, Self::Error>>;
     fn from_request(req: &HttpRequest, _: &mut Payload) -> Self::Future {
         let app_state = req.app_data::<web::Data<AppState>>().unwrap();
+        let mut db = app_state.db.get().unwrap();
         let token = req
             .cookie("token")
             .map(|c| c.value().to_string())
@@ -69,10 +75,24 @@ impl FromRequest for JwtMiddleware {
             }
         };
 
-        let user_id = uuid::Uuid::parse_str(claims.sub.as_str()).unwrap();
-        req.extensions_mut()
-            .insert::<uuid::Uuid>(user_id.to_owned());
+        let claimed_uid = uuid::Uuid::parse_str(claims.sub.as_str()).unwrap();
+        let uid = match users
+            .filter(user_id.eq(&claimed_uid))
+            .select(user_id)
+            .first::<uuid::Uuid>(&mut db)
+        {
+            Ok(uid) => uid,
+            Err(_) => {
+                let json_error = ErrorResponse {
+                    status: "fail".to_string(),
+                    message: "Invalid user id".to_string(),
+                };
+                return ready(Err(ErrorUnauthorized(json_error)));
+            }
+        };
 
-        ready(Ok(JwtMiddleware { user_id }))
+        req.extensions_mut().insert::<uuid::Uuid>(uid.to_owned());
+
+        ready(Ok(JwtMiddleware { user_id: uid }))
     }
 }
