@@ -12,6 +12,16 @@ diesel::table! {
 }
 
 diesel::table! {
+    schedule_table (transaction_id, user_id) {
+        transaction_id -> Int4,
+        user_id -> Uuid,
+        time_unit -> Text,
+        time_schedule -> Int4,
+        last_time_added -> Int4,
+    }
+}
+
+diesel::table! {
     transaction_table (_timestamp, user_id) {
         user_id -> Uuid,
         _timestamp -> Int4,
@@ -37,10 +47,12 @@ diesel::table! {
 }
 
 diesel::joinable!(account_table -> users (user_id));
+diesel::joinable!(schedule_table -> users (user_id));
 diesel::joinable!(transaction_table -> users (user_id));
 
 diesel::allow_tables_to_appear_in_same_query!(
     account_table,
+    schedule_table,
     transaction_table,
     users,
 );

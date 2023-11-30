@@ -1,21 +1,21 @@
 use actix_web::{get, post, web, HttpMessage, HttpRequest, HttpResponse};
-use env_logger::Logger;
-use log::info;
 use uuid::Uuid;
 
 use crate::jwt_auth::JwtMiddleware;
 use crate::models::account::{Account, SyncAccount};
+use crate::models::schedule::{SyncSchedule, Schedule};
 use crate::models::transaction::{SyncTransaction, Transaction};
-use crate::models::TransactionExpenseInsert;
+use crate::models::RemoteSyncData;
 use crate::schema::account_table::{self, dsl::*};
 use crate::schema::transaction_table::{self, dsl::*};
+use crate::schema::schedule_table::{self, dsl::*};
 use crate::AppState;
 use diesel::prelude::*;
 
 #[post("/sync")]
 pub async fn sync_post(
     req: HttpRequest,
-    data: web::Json<TransactionExpenseInsert>,
+    data: web::Json<RemoteSyncData>,
     app_data: web::Data<AppState>,
     _: JwtMiddleware,
 ) -> HttpResponse {
@@ -32,6 +32,11 @@ pub async fn sync_post(
         .execute(&mut db)
         .unwrap();
 
+    diesel::delete(schedule_table)
+        .filter(schedule_table::user_id.eq(&uid))
+        .execute(&mut db)
+        .unwrap();
+
     let transactions: Vec<Transaction> = data
         .transactions
         .iter()
@@ -39,6 +44,11 @@ pub async fn sync_post(
         .collect();
 
     let expenses: Vec<Account> = data.accounts.iter().map(|e| e.into_insert(uid)).collect();
+    let schedules: Vec<Schedule> = data
+        .schedules
+        .iter()
+        .map(|t| t.into_insert(uid))
+        .collect();
 
     diesel::insert_into(transaction_table)
         .values(transactions)
@@ -47,6 +57,11 @@ pub async fn sync_post(
 
     diesel::insert_into(account_table)
         .values(expenses)
+        .execute(&mut db)
+        .unwrap();
+
+    diesel::insert_into(schedule_table)
+        .values(schedules)
         .execute(&mut db)
         .unwrap();
 
@@ -85,11 +100,18 @@ pub async fn sync_get(
         .load::<SyncAccount>(&mut db)
         .unwrap();
 
+    let schedules = schedule_table
+        .filter(schedule_table::user_id.eq(&uid))
+        .select((transaction_id, time_schedule, time_unit, last_time_added))
+        .load::<SyncSchedule>(&mut db)
+        .unwrap();
+
     HttpResponse::Ok().json(serde_json::json!({
         "status": "success",
-        "data": TransactionExpenseInsert{
+        "data": RemoteSyncData{
             accounts,
             transactions,
+            schedules
         }
     }))
 }
