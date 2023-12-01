@@ -4,10 +4,18 @@ use actix_web::{web, App, HttpServer};
 use baget_server::handler::config;
 use baget_server::{AppState, Pool};
 
+use diesel::pg::Pg;
 use diesel::r2d2::ConnectionManager;
 use diesel::{r2d2, PgConnection};
+use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
 
 use dotenvy::dotenv;
+
+pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!();
+
+pub fn run_db_migrations(conn: &mut impl MigrationHarness<Pg>) {
+    conn.run_pending_migrations(MIGRATIONS).expect("Could not run migrations");
+}
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -20,6 +28,9 @@ async fn main() -> std::io::Result<()> {
     let pool: Pool = r2d2::Pool::builder()
         .build(manager)
         .expect("Failed to create pool");
+    
+    run_db_migrations(&mut pool.get().unwrap());
+
     HttpServer::new(move || {
         App::new()
             .app_data(web::Data::new(AppState {
