@@ -1,4 +1,5 @@
 use actix_web::{get, post, web, HttpMessage, HttpRequest, HttpResponse};
+use diesel::pg::upsert::*;
 use uuid::Uuid;
 
 use crate::jwt_auth::JwtMiddleware;
@@ -22,20 +23,6 @@ pub async fn sync_post(
     let ext = req.extensions();
     let uid = ext.get::<Uuid>().unwrap();
     let mut db = app_data.db.get().unwrap();
-    diesel::delete(transaction_table)
-        .filter(transaction_table::user_id.eq(&uid))
-        .execute(&mut db)
-        .unwrap();
-
-    diesel::delete(account_table)
-        .filter(account_table::user_id.eq(&uid))
-        .execute(&mut db)
-        .unwrap();
-
-    diesel::delete(schedule_table)
-        .filter(schedule_table::user_id.eq(&uid))
-        .execute(&mut db)
-        .unwrap();
 
     let transactions: Vec<Transaction> = data
         .transactions
@@ -51,17 +38,42 @@ pub async fn sync_post(
         .collect();
 
     diesel::insert_into(transaction_table)
-        .values(transactions)
+        .values(&transactions)
+        .on_conflict(transaction_table.primary_key())
+        .do_update()
+        .set((
+            entry_date.eq(excluded(entry_date)),
+            amount.eq(excluded(amount)),
+            transaction_table::account.eq(excluded(transaction_table::account)),
+            category.eq(excluded(category)),
+            transaction_type.eq(excluded(transaction_type)),
+            transaction_title.eq(excluded(transaction_title)),
+        ))
         .execute(&mut db)
         .unwrap();
 
     diesel::insert_into(account_table)
-        .values(expenses)
+        .values(&expenses)
+        .on_conflict(account_table.primary_key())
+        .do_update()
+        .set((
+             account_table::account.eq(excluded(account_table::account)),
+             balance.eq(excluded(balance)),
+             income.eq(excluded(income)),
+             expense.eq(excluded(expense))
+        ))
         .execute(&mut db)
         .unwrap();
 
     diesel::insert_into(schedule_table)
-        .values(schedules)
+        .values(&schedules)
+        .on_conflict(schedule_table.primary_key())
+        .do_update()
+        .set((
+            time_schedule.eq(excluded(time_schedule)),
+            time_unit.eq(excluded(time_unit)),
+            last_time_added.eq(excluded(last_time_added)),
+        ))
         .execute(&mut db)
         .unwrap();
 

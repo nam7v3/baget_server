@@ -1,5 +1,4 @@
-use chrono::NaiveDateTime;
-use diesel::{Insertable, Queryable, Selectable, sql_types::Timestamp};
+use diesel::{Insertable, Queryable, Selectable};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
