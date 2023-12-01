@@ -8,7 +8,9 @@ use diesel::prelude::*;
 use jsonwebtoken::{EncodingKey, Header};
 
 use crate::jwt_auth::TokenClaims;
+use crate::models::account::{Account, SyncAccount};
 use crate::models::user::{NewUser, User};
+use crate::schema::account_table::dsl::*;
 use crate::schema::users::dsl::*;
 use crate::AppState;
 
@@ -16,6 +18,30 @@ use serde_json::json;
 
 #[post("/auth/register")]
 async fn register(data: web::Json<NewUser>, app_state: web::Data<AppState>) -> HttpResponse {
+    let DEFAULT_NEW_USER_ACCOUNT: Vec<SyncAccount> = vec![
+        SyncAccount {
+            id: 1,
+            accountType: "Cash".to_owned(),
+            balance: 0.0,
+            income: 0.0,
+            expense: 0.0,
+        },
+        SyncAccount {
+            id: 2,
+            accountType: "Bank".to_owned(),
+            balance: 0.0,
+            income: 0.0,
+            expense: 0.0,
+        },
+        SyncAccount {
+            id: 3,
+            accountType: "Card".to_owned(),
+            balance: 0.0,
+            income: 0.0,
+            expense: 0.0,
+        },
+    ];
+
     let mut db = app_state.db.get().unwrap();
     if let Ok(_) = users
         .filter(username.eq(&data.username))
@@ -38,11 +64,24 @@ async fn register(data: web::Json<NewUser>, app_state: web::Data<AppState>) -> H
             username: data.username.to_owned(),
             password: hashed_password,
         })
-        .execute(&mut db)
+        .get_result::<User>(&mut db)
     {
-        Ok(_) => HttpResponse::Ok().json(json!({
-            "status": "success",
-        })),
+        Ok(new_user) => {
+            let new_account: Vec<Account> = DEFAULT_NEW_USER_ACCOUNT
+                .clone()
+                .iter()
+                .map(|a| a.into_insert(&new_user.user_id))
+                .collect();
+
+            diesel::insert_into(account_table)
+                .values(new_account)
+                .execute(&mut db)
+                .unwrap();
+
+            HttpResponse::Ok().json(json!({
+                "status": "success",
+            }))
+        }
         Err(_) => HttpResponse::NotFound().json(json!({
             "status": "fail",
         })),
