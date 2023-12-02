@@ -6,6 +6,7 @@ use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
 use chrono::{Duration, Utc};
 use diesel::prelude::*;
 use jsonwebtoken::{EncodingKey, Header};
+use log::error;
 
 use crate::jwt_auth::TokenClaims;
 use crate::models::account::{Account, SyncAccount};
@@ -76,6 +77,9 @@ async fn register(data: web::Json<NewUser>, app_state: web::Data<AppState>) -> H
             diesel::insert_into(account_table)
                 .values(new_account)
                 .execute(&mut db)
+                .map_err(|err| {
+                    error!("{}", err)
+                })
                 .unwrap();
 
             HttpResponse::Ok().json(json!({

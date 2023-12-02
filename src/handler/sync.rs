@@ -1,6 +1,9 @@
-use actix_web::{get, post, web, HttpMessage, HttpRequest, HttpResponse};
+use actix_web::error::ErrorBadRequest;
+use actix_web::{get, post, web, HttpMessage, HttpRequest, Result, Responder};
 use diesel::pg::upsert::*;
 use uuid::Uuid;
+
+use log::error;
 
 use crate::jwt_auth::JwtMiddleware;
 use crate::models::account::{Account, SyncAccount};
@@ -19,7 +22,7 @@ pub async fn sync_post(
     data: web::Json<RemoteSyncData>,
     app_data: web::Data<AppState>,
     _: JwtMiddleware,
-) -> HttpResponse {
+) -> Result<impl Responder> {
     let ext = req.extensions();
     let uid = ext.get::<Uuid>().unwrap();
     let mut db = app_data.db.get().unwrap();
@@ -50,7 +53,10 @@ pub async fn sync_post(
             transaction_title.eq(excluded(transaction_title)),
         ))
         .execute(&mut db)
-        .unwrap();
+        .map_err(|err|{
+            error!("{}", err);
+            ErrorBadRequest(err)
+        })?;
 
     diesel::insert_into(account_table)
         .values(&expenses)
@@ -63,7 +69,11 @@ pub async fn sync_post(
              expense.eq(excluded(expense))
         ))
         .execute(&mut db)
-        .unwrap();
+        .map_err(|err|{
+            error!("{}", err);
+            ErrorBadRequest(err)
+        })?;
+        
 
     diesel::insert_into(schedule_table)
         .values(&schedules)
@@ -75,11 +85,12 @@ pub async fn sync_post(
             last_time_added.eq(excluded(last_time_added)),
         ))
         .execute(&mut db)
-        .unwrap();
-
-    HttpResponse::Ok().json(serde_json::json!({
-        "status": "success"
-    }))
+        .map_err(|err|{
+            error!("{}", err);
+            ErrorBadRequest(err)
+        })?;
+        
+    Ok(web::Json(r#"{"status": "success"}"#))
 }
 
 #[get("/sync")]
@@ -87,7 +98,7 @@ pub async fn sync_get(
     req: HttpRequest,
     app_state: web::Data<AppState>,
     _: JwtMiddleware,
-) -> HttpResponse {
+) -> Result<impl Responder>{
     let ext = req.extensions();
     let uid = ext.get::<Uuid>().unwrap();
     let mut db = app_state.db.get().unwrap();
@@ -104,26 +115,35 @@ pub async fn sync_get(
             transaction_title,
         ))
         .load::<SyncTransaction>(&mut db)
-        .unwrap();
+        .map_err(|err|{
+            error!("{}", err);
+            ErrorBadRequest(err)
+        })?;
 
     let accounts = account_table
         .filter(account_table::user_id.eq(&uid))
         .select((account_id, account_table::account, balance, income, expense))
         .load::<SyncAccount>(&mut db)
-        .unwrap();
+        .map_err(|err|{
+            error!("{}", err);
+            ErrorBadRequest(err)
+        })?;
 
     let schedules = schedule_table
         .filter(schedule_table::user_id.eq(&uid))
         .select((transaction_id, time_schedule, time_unit, last_time_added))
         .load::<SyncSchedule>(&mut db)
-        .unwrap();
+        .map_err(|err|{
+            error!("{}", err);
+            ErrorBadRequest(err)
+        })?;
 
-    HttpResponse::Ok().json(serde_json::json!({
+    Ok(web::Json(serde_json::json!({
         "status": "success",
         "data": RemoteSyncData{
             accounts,
             transactions,
             schedules
         }
-    }))
+    })))
 }
