@@ -1,7 +1,7 @@
 -- Your SQL goes here
 CREATE TABLE IF NOT EXISTS transaction_table (
        user_id UUID NOT NULL,
-       _timestamp INT NOT NULL,
+       _timestamp BIGINT NOT NULL,
        entry_date TEXT NOT NULL,
        amount REAL NOT NULL,
        account TEXT NOT NULL,

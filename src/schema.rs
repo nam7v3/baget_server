@@ -13,18 +13,18 @@ diesel::table! {
 
 diesel::table! {
     schedule_table (transaction_id, user_id) {
-        transaction_id -> Int4,
+        transaction_id -> Int8,
         user_id -> Uuid,
         time_unit -> Text,
         time_schedule -> Int4,
-        last_time_added -> Int4,
+        last_time_added -> Int8,
     }
 }
 
 diesel::table! {
     transaction_table (_timestamp, user_id) {
         user_id -> Uuid,
-        _timestamp -> Int4,
+        _timestamp -> Int8,
         entry_date -> Text,
         amount -> Float4,
         account -> Text,

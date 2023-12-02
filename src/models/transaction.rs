@@ -7,7 +7,7 @@ use uuid::Uuid;
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct Transaction {
     #[diesel(column_name = "_timestamp")]
-    pub date: i32,
+    pub date: i64,
     pub user_id: Uuid,
     pub entry_date: String,
     pub amount: f32,
@@ -22,7 +22,7 @@ pub struct Transaction {
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct SyncTransaction {
     #[diesel(column_name = "_timestamp")]
-    pub date: i32,
+    pub date: i64,
     pub entry_date: String,
     pub amount: f32,
     pub account: String,

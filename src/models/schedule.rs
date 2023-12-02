@@ -7,7 +7,7 @@ use uuid::Uuid;
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct Schedule {
     #[diesel(column_name = "transaction_id")]
-    pub transactionDto: i32,
+    pub transactionDto: i64,
     #[diesel(column_name = "user_id")]
     pub user_id: Uuid,
     #[diesel(column_name = "time_schedule")]
@@ -15,7 +15,7 @@ pub struct Schedule {
     #[diesel(column_name = "time_unit")]
     pub timeUnit: String,
     #[diesel(column_name = "last_time_added")]
-    pub lastTimeAdded: i32,
+    pub lastTimeAdded: i64,
 }
 
 #[derive(Queryable, Insertable, Serialize, Deserialize, Clone)]
@@ -23,13 +23,13 @@ pub struct Schedule {
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct SyncSchedule {
     #[diesel(column_name = "transaction_id")]
-    pub transactionDto: i32,
+    pub transactionDto: i64,
     #[diesel(column_name = "time_schedule")]
     pub timeSchedule: i32,
     #[diesel(column_name = "time_unit")]
     pub timeUnit: String,
     #[diesel(column_name = "last_time_added")] 
-    pub lastTimeAdded: i32,
+    pub lastTimeAdded: i64,
 }
 
 impl SyncSchedule {

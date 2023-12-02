@@ -1,6 +1,6 @@
 -- Your SQL goes here
 CREATE TABLE IF NOT EXISTS schedule_table (
-       transaction_id INT NOT NULL,
+       transaction_id BIGINT NOT NULL,
        user_id UUID NOT NULL,
        time_unit TEXT NOT NULL,
        time_schedule INT NOT NULL,
